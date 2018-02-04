@@ -169,7 +169,7 @@ const _visualizeTensor = (x, len, max) => {
 			ret.appendChild(_visualizeTensor(el, len, max));
 	} else {
 		ret.className = 'leaf';
-		ret.style.backgroundColor = `hsla(${x/max*360}deg, 100%, 70%, ${1/Math.pow(len, 0.3)})`;
+		ret.style.backgroundColor = `hsla(${x/max*360}, 100%, 70%, ${1/Math.pow(len, 0.3)})`;
 		//ret.textContent = x;
 	}
 	return ret;
