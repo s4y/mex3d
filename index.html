@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<style>
+
+body {
+	margin: 0;
+}
+
+#controls {
+	position: absolute;
+	top: 0;
+	background-color: rgba(0, 0, 0, 0.1);
+	padding: 1em;
+}
+
+#output {
+	font-size: 2vw;
+}
+
+.mexTensor {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100vh;
+}
+
+@keyframes rotate {
+	from { transform: rotateY(0deg) rotateX(35.264389682754654deg) rotateZ(45deg); }
+	to { transform: rotateY(360deg) rotateX(35.264389682754654deg) rotateZ(45deg); }
+}
+
+@keyframes rotateBack {
+	from { transform: rotateZ(-45deg) rotateX(-35.264389682754654deg) rotateY(-0deg); }
+	to { transform: rotateZ(-45deg) rotateX(-35.264389682754654deg) rotateY(-360deg); }
+}
+
+.mexTensor > div {
+	position: relative;
+	transform-style: preserve-3d;
+	animation: 9s linear rotate infinite;
+}
+
+.mexTensor div.leaf {
+	width: 1em;
+	height: 1em;
+}
+
+.mexTensor div {
+	display: flex;
+	counter-reset: z-position;
+	transform-style: preserve-3d;
+	background-color: rgba(0, 0, 0, 0.0);
+}
+
+.mexTensor > div > div:not(:first-child) {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+.mexTensor > div > div {
+	counter-increment: z-position;
+}
+
+.mexTensor > div > div > div {
+	flex-direction: column;
+}
+
+</style>
+<body>
+<div id=output></div>
+<div id=controls>
+	<p><label>Size<br><input id=sizeInput type=range min=3 max=50 value=10></label></p>
+	<p><label>Seed<br><input id=seedInput type=number min=0 value=0></label></p>
+</div>
+<script>
+'use strict';
+
+class Tensor {
+	constructor(dim) {
+		this.dim = dim;
+		this.storage = [];
+	}
+
+	get length() {
+		return this.storage.length;
+	}
+
+	set(key, value) {
+		this._checkDimension(key);
+		return this._set(key, value);
+	}
+
+	get(key) {
+		this._checkDimension(key);
+		return this._get(key);
+	}
+
+	_checkDimension(key) {
+		if (key.length != this.dim)
+			throw new Error(`Bad dimension (${key.length} != ${this.dim})`);
+	}
+
+	_set(key, value) {
+		const head = key[0];
+		if (key.length == 1) {
+			this.storage[head] = value;
+		} else {
+			if (!(head in this.storage))
+				this.storage[head] = new Tensor(this.dim - 1);
+			this.storage[head]._set(key.slice(1), value);
+		}
+	}
+
+	_get(key) {
+		const head = key[0];
+		if (key.length == 1)
+			return this.storage[head];
+		if (head in this.storage)
+			return this.storage[head]._get(key.slice(1));
+	}
+}
+
+const mex = set => {
+	for (let i = 0;; i++) {
+		if (!set.has(i))
+			return i;
+	}
+};
+
+const sample = (key, tensor) => {
+	let ret = new Set;
+	for (let d = 0; d < key.length; d++) {
+		for (let i = 0; i < key[d]; i++) {
+			ret.add(tensor.get(
+				key.map((x, j) => j == d ? i : x)
+			));
+		}
+	}
+	return ret;
+}
+
+const _createMexTensor = (key, tensor) => {
+	if (tensor.get(key) !== undefined)
+		return;
+	for (let d = 0; d < key.length; d++) {
+		if (key[d] > 0) {
+			_createMexTensor(
+				key.map((x, j) => j == d ? x - 1 : x),
+				tensor
+			);
+		}
+	}
+	tensor.set(key, mex(sample(key, tensor)));
+}
+
+const createMexTensor = (dim, size, seed) => {
+	let ret = new Tensor(dim);
+	ret.set(Array(dim).fill(0), seed);
+	_createMexTensor(Array(dim).fill(size-1), ret);
+	return ret;
+}
+
+// - - -
+
+const _visualizeTensor = (x, len, max) => {
+	let ret = document.createElement('div');
+	if (x instanceof Tensor) {
+		for (let el of x.storage)
+			ret.appendChild(_visualizeTensor(el, len, max));
+	} else {
+		ret.className = 'leaf';
+		ret.style.backgroundColor = `hsla(${x/max*360}deg, 100%, 70%, ${1/Math.pow(len, 0.3)})`;
+		//ret.textContent = x;
+	}
+	return ret;
+}
+
+const visualizeTensor = tensor => {
+	let max = Math.pow(2, Math.ceil(Math.log2(tensor.length))) - 1;
+	return _visualizeTensor(tensor, tensor.length, max);
+}
+
+// - - -
+
+const sizeInput = document.getElementById('sizeInput');
+const seedInput = document.getElementById('seedInput');
+const outputEl = document.getElementById('output');
+
+let showMexTensor = (size, seed) => {
+	let t = createMexTensor(3, size, seed);
+
+	let el = document.createElement('div');
+	el.className = 'mexTensor';
+
+	let tensorEl = visualizeTensor(t);
+	for (let i = 0; i < tensorEl.children.length; i++) {
+		tensorEl.children[i].style.transform = `translateZ(${(size/2 - i + 0.5)}em)`;
+	}
+
+	el.appendChild(tensorEl);
+	outputEl.innerHTML = '';
+	outputEl.appendChild(el);
+};
+
+let show = () => {
+	showMexTensor(sizeInput.valueAsNumber, seedInput.valueAsNumber);
+}
+
+sizeInput.oninput = show;
+seedInput.oninput = show;
+
+show();
+
+</script>
