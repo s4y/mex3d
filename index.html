@@ -203,7 +203,7 @@ let showMexTensor = (size, seed) => {
 };
 
 let show = () => {
-	showMexTensor(sizeInput.valueAsNumber, seedInput.valueAsNumber);
+	showMexTensor(+sizeInput.value, +seedInput.value);
 }
 
 sizeInput.oninput = show;
